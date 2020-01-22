@@ -1,85 +1,161 @@
-// Using this template, the cheerio documentation,
-// and what you've learned in class so far, scrape a website
-// of your choice, save information from the page in a result array, and log it to the console.
+const express = require("express");
+const exphbs = require('express-handlebars');
+const logger = require("morgan");
+const mongoose = require("mongoose");
 
-var cheerio = require("cheerio");
-var axios = require("axios");
-var express = require("express");
-var mongojs = require("mongojs");
-var path = require('path');
+// Our scraping tools
+// Axios is a promised-based http library, similar to jQuery's Ajax method
+// It works on the client and on the server
+const axios = require("axios");
+const cheerio = require("cheerio");
 
-var results = [];
+// Require all models
+const db = require("./models");
+
+const PORT = process.env.PORT || 1337;
+
+// Connect to the Mongo DB
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost/article-scraper";
+
+mongoose.connect(MONGODB_URI, { useNewUrlParser: true });
 
 // Initialize Express
-var app = express();
+const app = express();
 
+app.engine('handlebars', exphbs());
+app.set('view engine', 'handlebars');
+
+app.get('/', function (req, res) {
+  res.render('index');
+});
+
+// Configure middleware
+
+// Use morgan logger for logging requests
+app.use(logger("dev"));
+// Parse request body as JSON
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+// Make public a static folder
 app.use(express.static("public"));
 
+// Routes
 
 
-var databaseUrl = "news";
-var collections = ["company"];
 
-var db = mongojs(databaseUrl, collections);
-
-app.get("/", function (req, res) {
-  res.sendFile(path.join(__dirname + '/index.html'));
-  res.sendFile(__dirname + '/index.js');
-});
-
-// 2. At the "/all" path, display every entry in the animals collection
-app.get("/all", function (req, res) {
-  // Query: In our database, go to the animals collection, then "find" everything
-  db.company.find({}, function (err, data) {
-    // Log any errors if the server encounters one
-    if (err) {
-      console.log(err);
-    }
-    else {
-      // Otherwise, send the result of this query to the browser
-      res.json(data);
-    }
-  });
-
-});
-
-// Make a request via axios to grab the HTML body from the site of your choice
+// A GET route for scraping the The Onion website
 app.get("/scrape", function (req, res) {
-
+  // First, we grab the body of the html with axios
   axios.get("https://finviz.com/quote.ashx?t=ATVI").then(function (response) {
+    // Then, we load that into cheerio and save it to $ for a shorthand selector
+    const $ = cheerio.load(response.data);
 
-    // Load the HTML into cheerio and save it to a variable
-    // '$' becomes a shorthand for cheerio's selector commands, much like jQuery's '$'
-    var $ = cheerio.load(response.data);
-
-    // Select each element in the HTML body from which you want information.
-    // NOTE: Cheerio selectors function similarly to jQuery's selectors,
-    // but be sure to visit the package's npm page to see how it works
     $("a.tab-link-news").each(function (i, element) {
-      let title = element.children[0].data;
+      const title = element.children[0].data;
       const link = element.attribs.href;
 
-      console.log(title, link);
-      // var title = $(element).children().text();
-      // var link = $(element).find("a").attr("href");
 
-      // Save these results in an object that we'll push into the results array we defined earlier
-      db.company.insert({
-        ticker: "ATVI",
+      const result = {
         title,
         link
-      });
+      }
 
+      // Create a new Article using the `result` object built from scraping
+      db.Article.create(result)
+        .then(function (dbArticle) {
+          // View the added result in the console
+          console.log('under here is teh article')
+          console.log(dbArticle);
+        })
+        .catch(function (err) {
+          // If an error occurred, log it
+          console.log(err);
+        });
     });
 
-    // Log the results once you've looped through each of the elements found with cheerio
-    console.log(results);
+    // Send a message to the client
+    res.send("Scrape Complete");
   });
-  res.send("Scrape complete");
 });
 
+// Route for getting all Articles from the db
+app.get("/articles", function (req, res) {
+  // Grab every document in the Articles collection
+  db.Article.find({})
+    .then(function (dbArticle) {
+      // If we were able to successfully find Articles, send them back to the client
+      res.json(dbArticle);
+    })
+    .catch(function (err) {
+      // If an error occurred, send it to the client
+      res.json(err);
+    });
+});
 
-// Set the app to listen on port 3000
-app.listen(3000, function () {
-  console.log("App running on port 3000!");
+// Route for grabbing a specific Article by id, populate it with it's comment
+app.get("/articles/:id", function (req, res) {
+  // Using the id passed in the id parameter, prepare a query that finds the matching one in our db...
+  db.Article.findOne({ _id: req.params.id })
+    // ..and populate all of the comments associated with it
+    .populate("comment")
+    .then(function (dbArticle) {
+      // If we were able to successfully find an Article with the given id, send it back to the client
+      res.json(dbArticle);
+    })
+    .catch(function (err) {
+      // If an error occurred, send it to the client
+      res.json(err);
+    });
+});
+
+// Route for saving/updating an Article's associated comment
+app.post("/articles/:id", function (req, res) {
+  // Create a new note and pass the req.body to the entry
+  db.Comment.create(req.body)
+    .then(function (dbComment) {
+      // If a Comment was created successfully, find one Article with an `_id` equal to `req.params.id`. Update the Article to be associated with the new Note
+      // { new: true } tells the query that we want it to return the updated User -- it returns the original by default
+      // Since our mongoose query returns a promise, we can chain another `.then` which receives the result of the query
+      return db.Article.findOneAndUpdate({ _id: req.params.id }, { $push: { comment: dbComment._id } }, { new: true });
+    })
+    .then(function (dbArticle) {
+      // If we were able to successfully update an Article, send it back to the client
+      res.json(dbArticle);
+    })
+    .catch(function (err) {
+      // If an error occurred, send it to the client
+      res.json(err);
+    });
+});
+
+// Delete a comment
+app.delete("/comment/delete/:comment_id/:article_id", function (req, res) {
+  // Use the comment id to find and delete it
+  db.Comment.findOneAndRemove({ "_id": req.params.comment_id }, function (err) {
+    // Log any errors
+    if (err) {
+      console.log(err);
+      res.send(err);
+    }
+    else {
+      db.Article.findOneAndUpdate({ "_id": req.params.article_id }, { $pull: { "Comment": req.params.comment_id } })
+        // Execute the above query
+        .exec(function (err) {
+          // Log any errors
+          if (err) {
+            console.log(err);
+            res.send(err);
+          }
+          else {
+            // Or send the note to the browser
+            res.send("Comment Deleted");
+          }
+        });
+    }
+  });
+});
+
+// Start the server
+app.listen(PORT, function () {
+  console.log("App running on port: " + PORT + "!");
 });

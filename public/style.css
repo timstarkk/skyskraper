@@ -1,0 +1,16 @@
+a:hover {
+    cursor: pointer;
+}
+
+.card {
+    padding: 10px;
+}
+
+.commentBox {
+    /* border: 2px solid gold; */
+    padding: 10px !important; 
+}
+
+.card-action {
+    /* margin-bottom: 20px; */
+}
