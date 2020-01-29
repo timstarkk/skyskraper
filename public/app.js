@@ -52,7 +52,7 @@ $(document).on("click", ".comment", function () {
                     console.log(item);
                     console.log(item.body)
                     let commentAll = $("<div class='card white'>");
-                    let commentCard = $("<div class='card-content white-text'>")
+                    let commentCard = $("<div class='card-content black-text'>")
                     commentCard.html(`<a data-article-id='${articleId}' data-comment-id='${item._id}' class='right btn-floating btn-large waves-effect waves-light red deleteComment'><i class='material-icons'>clear</i></a><span class='card-title'>${item.title}</span><p>${item.body}<p>`);
                     commentAll.append(commentCard);
                     $("#commentSection").append(commentAll);
