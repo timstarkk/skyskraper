@@ -13,6 +13,12 @@ $.getJSON("/articles", function (data) {
     }
 });
 
+$.getJSON("/title", function (data) {
+    let ticker = data[0].title;
+
+    $('#bigTitle').html(`${ticker} News`)
+});
+
 $("#scrape").on("click", function () {
     $.ajax({
         method: "GET",
@@ -133,5 +139,16 @@ $(document).on("click", ".deleteComment", function () {
                 }
             }
         })
+    })
+});
+
+$(document).on("click", "#searchButton", function () {
+    let searchTerm = $('#tickerSearch').val().trim()
+    $.ajax({
+        method: "GET",
+        url: "/scrape/" + searchTerm,
+    }).done(function (data) {
+        console.log(data)
+        window.location = "/"
     })
 });

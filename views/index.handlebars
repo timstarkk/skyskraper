@@ -4,7 +4,17 @@
     </div>
 </nav>
 <div class="container">
-    <h1 class="header center">ATVI News</h1>
+
+    <div class="row" style="display: flex; align-items: center; margin-top: 20px;">
+        <div class="input-field col s8" style="">
+            <i class="material-icons prefix">search</i>
+            <input placeholder="Search..." id="tickerSearch" type="text" class="validate">
+            <label for="first_name">Stock Ticker</label>
+        </div>
+
+        <button class="btn col col-offset-s1 s3" id="searchButton">search</button>
+    </div>
+    <h1 class="header center" id="bigTitle"></h1>
     <h6 class="grey-text center">Powered by FinViz</h6>
     <br>
     <hr>

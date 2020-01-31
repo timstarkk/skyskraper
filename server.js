@@ -26,37 +26,45 @@ app.engine('handlebars', exphbs());
 app.set('view engine', 'handlebars');
 
 app.get('/', function (req, res) {
-  axios.get("https://finviz.com/quote.ashx?t=ATVI").then(function (response) {
-    // Then, we load that into cheerio and save it to $ for a shorthand selector
-    const $ = cheerio.load(response.data);
+  // axios.get("https://finviz.com/quote.ashx?t=ATVI").then(function (response) {
+  //   // Then, we load that into cheerio and save it to $ for a shorthand selector
+  //   const $ = cheerio.load(response.data);
 
-    $("a.tab-link-news").each(function (i, element) {
-      const title = element.children[0].data;
-      const link = element.attribs.href;
+  //   $("a.tab-link-news").each(function (i, element) {
+  //     const title = element.children[0].data;
+  //     const link = element.attribs.href;
 
 
-      const result = {
-        title,
-        link
-      }
+  //     const result = {
+  //       title,
+  //       link
+  //     }
 
-      // Create a new Article using the `result` object built from scraping
-      db.Article.create(result)
-        .then(function (dbArticle) {
-          // View the added result in the console
-          console.log('under here is teh article')
-          console.log(dbArticle);
-        })
-        .catch(function (err) {
-          // If an error occurred, log it
-          console.log(err);
-        });
-    });
+  // mongoose.connection.collections['articles'].drop(function (err) {
+  //   console.log('collection dropped');
+  // });
 
-    // Send a message to the client
-    // res.send("Scrape Complete");
+  //     // Create a new Article using the `result` object built from scraping
+  //     db.Article.create(result)
+  //       .then(function (dbArticle) {
+  //         // View the added result in the console
+  //         console.log('under here is teh article')
+  //         console.log(dbArticle);
+  //       })
+  //       .catch(function (err) {
+  //         // If an error occurred, log it
+  //         console.log(err);
+  //       });
+  //   });
 
-    res.render('index');
+  // Send a message to the client
+  // res.send("Scrape Complete");
+
+  //   res.render('index');
+  // });
+
+  res.render("index", {
+    title: "Welcome!"
   });
 });
 
@@ -75,9 +83,58 @@ app.use(express.static("public"));
 
 
 // A GET route for scraping the The Onion website
-app.get("/scrape", function (req, res) {
+app.get("/scrape/:id", function (req, res) {
+  // console.log(req.params.id);
+  let searchTerm = req.params.id;
+  let searchTermObject = {
+    title: searchTerm,
+    key: 'key'
+  }
+
+  mongoose.connection.collections['titles'].drop(function (err) {
+    console.log('collection dropped');
+  });
+
+  db.Title.create(searchTermObject)
+    .then(function (dbArticle) {
+      // View the added result in the console
+      // console.log(dbArticle);
+    })
+    .catch(function (err) {
+      // If an error occurred, log it
+      console.log(err);
+    });
+
+
+  // mongoose.connection.collection("titles").find({}, function (err, cursor) {
+  //   if (err) throw err;
+  //   console.log('------')
+  //   cursor.toArray().then(function (result) {
+  //     console.log(result);
+  //   }).catch(function (error) {
+  //     console.log(error);
+  //   })
+  //   console.log('=---0-0-')
+  // });
+
+  // let theTitle;
+
+  // async function getTitle() {
+  //   theTitle = await mongoose.connection.collection('titles').find({}).toArray();
+  //   console.log('++++++++++++');
+  //   console.log(theTitle);
+  //   cons
+  // }
+
+  // getTitle();
+
+  // console.log('++++++++++++++++');
+  // console.log(theTitle);
+  // console.log('++++++++++++++++');
+
+
   // First, we grab the body of the html with axios
-  axios.get("https://finviz.com/quote.ashx?t=ATVI").then(function (response) {
+  axios.get(`https://finviz.com/quote.ashx?t=${searchTerm}`).then(function (response) {
     // Then, we load that into cheerio and save it to $ for a shorthand selector
     const $ = cheerio.load(response.data);
 
@@ -91,12 +148,16 @@ app.get("/scrape", function (req, res) {
         link
       }
 
+      mongoose.connection.collections['articles'].drop(function (err) {
+        // console.log('collection dropped');
+      });
+
       // Create a new Article using the `result` object built from scraping
       db.Article.create(result)
         .then(function (dbArticle) {
           // View the added result in the console
-          console.log('under here is teh article')
-          console.log(dbArticle);
+          // console.log('under here is teh article')
+          // console.log(dbArticle);
         })
         .catch(function (err) {
           // If an error occurred, log it
@@ -122,6 +183,16 @@ app.get("/articles", function (req, res) {
       res.json(err);
     });
 });
+
+app.get("/title", function (req, res) {
+  db.Title.find({})
+    .then(function (result) {
+      res.json(result);
+    })
+    .catch(function (err) {
+      res.json(err);
+    })
+})
 
 // Route for grabbing a specific Article by id, populate it with it's comment
 app.get("/articles/:id", function (req, res) {
