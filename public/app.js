@@ -14,6 +14,7 @@ $.getJSON("/articles", function (data) {
 });
 
 $.getJSON("/title", function (data) {
+    console.log(data);
     let ticker = data[0].title;
 
     $('#bigTitle').html(`${ticker} News`)
